@@ -13,38 +13,43 @@
         }
 
         body {
-            background-color: #f4f4f9;
+            background-color: #f0f0f0;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 20px;
+            padding: 40px 20px;
         }
 
         .card {
             background: #ffffff;
-            border-radius: 12px;
-            padding: 24px;
+            border-radius: 16px;
+            padding: 32px 40px;
             width: 100%;
-            max-width: 480px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 620px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
         }
 
         h2 {
             text-align: center;
-            margin-bottom: 20px;
-            color: #1a1a1a;
-            font-size: 20px;
+            margin-bottom: 24px;
+            color: #000;
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .video-container {
             position: relative;
             width: 100%;
-            height: 260px;
+            height: 380px;
             background-color: #000;
             border-radius: 8px;
             overflow: hidden;
-            margin-bottom: 16px;
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -70,67 +75,79 @@
 
         .buttons {
             display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 24px;
             justify-content: space-between;
         }
 
         button {
             flex: 1;
-            padding: 10px 12px;
+            padding: 10px 14px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 14px;
             cursor: pointer;
-            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: opacity 0.2s, background-color 0.2s;
         }
 
         .btn-primary {
-            background-color: #2563eb;
+            background-color: #3b82f6;
             color: white;
         }
 
         .btn-secondary {
-            background-color: #e5e7eb;
+            background-color: #f3f4f6;
+            color: #9ca3af;
+        }
+
+        button:not(:disabled).btn-secondary {
             color: #374151;
+            background-color: #e5e7eb;
         }
 
         button:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
             cursor: not-allowed;
         }
 
         .status {
-            font-size: 13px;
+            font-size: 14px;
             color: #6b7280;
             margin-bottom: 16px;
-            min-height: 18px;
+            min-height: 20px;
             text-align: center;
         }
 
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
 
         .form-group label {
             display: block;
-            font-size: 12px;
-            color: #4b5563;
-            margin-bottom: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 6px;
         }
 
         .form-group input {
             width: 100%;
-            padding: 10px;
+            padding: 10px 12px;
             border: 1px solid #d1d5db;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 14px;
             outline: none;
+            background-color: #fff;
         }
 
         .form-group input:focus {
-            border-color: #2563eb;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
     </style>
 </head>
@@ -146,8 +163,8 @@
 
         <div class="buttons">
             <button class="btn-primary" id="btnStart">📷 Ligar câmara</button>
-            <button class="btn-secondary" id="btnStop" disabled>Desligar</button>
-            <button class="btn-primary" id="btnCapture" disabled>📷 Tirar foto</button>
+            <button class="btn-secondary" id="btnStop" disabled>⏹️ Desligar</button>
+            <button class="btn-secondary" id="btnCapture" disabled>📷 Tirar foto</button>
             <button class="btn-secondary" id="btnRepeat" disabled>🔄 Repetir</button>
         </div>
 
