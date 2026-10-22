@@ -12,10 +12,16 @@ document.addEventListener('DOMContentLoaded', () => {
   async function ligarCamera() {
     if (stream) return;
 
+    // Verifica se o browser suporta a API
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("O teu navegador não suporta acesso à câmara ou estás a aceder por HTTP em vez de HTTPS.");
+      return;
+    }
+
     try {
-      // Tenta pedir a câmara
+      // Removido o facingMode para usar a câmara padrão do dispositivo (funciona melhor no PC)
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: true, 
         audio: false
       });
 
@@ -30,15 +36,14 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error('Erro na câmara:', err);
       
-      // Explicar o erro ao utilizador
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        alert('ERRO: Permissão negada!\n\nClica no cadeado ao lado do endereço do site e permite o acesso à câmara.');
+        alert('ERRO: Permissão negada!\n\nClica no ícone do cadeado ao lado do endereço do site e permite o acesso à câmara.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         alert('ERRO: Nenhuma câmara encontrada neste dispositivo.');
       } else if (err.name === 'NotReadableError') {
         alert('ERRO: A câmara está a ser usada por outro programa (Zoom, Teams, etc). Fecha-os e tenta novamente.');
       } else {
-        alert('Erro desconhecido ao ligar a câmara: ' + err.message);
+        alert('Erro ao ligar a câmara: ' + err.message);
       }
     }
   }
