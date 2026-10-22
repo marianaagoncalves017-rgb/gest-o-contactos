@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Leitor de Cartões - OCR</title>
-  <!-- Tesseract.js CDN -->
-  <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+  
+  <!-- Tesseract.js - Versão Estável via CDN -->
+  <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  
   <style>
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; background: #f4f6f8; padding: 20px; }
+    body { font-family: system-ui, sans-serif; background: #f4f6f8; padding: 20px; margin: 0; }
     .card { background: #fff; padding: 20px; border-radius: 12px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
     .video-wrapper { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
     #video, #preview { width: 100%; height: 100%; object-fit: cover; display: none; }
@@ -21,7 +23,7 @@
     .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
     .form-group label { font-weight: 500; font-size: .9rem; }
     .form-group input { padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
-    #status { text-align: center; font-weight: 500; color: #2563eb; min-height: 24px; }
+    #status { text-align: center; font-weight: 500; color: #2563eb; min-height: 24px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
