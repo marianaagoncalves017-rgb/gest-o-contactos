@@ -3,104 +3,67 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Leitor de Cartões - Câmara</title>
-
+  <title>Leitor de Cartões - OCR</title>
+  <!-- Tesseract.js CDN -->
+  <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
   <style>
     * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #f4f6f8;
-      color: #222;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-
-    header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.06);
-      width: 100%;
-      max-width: 600px;
-    }
-
-    .video-wrapper {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 4 / 3;
-      background: #000;
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 16px;
-    }
-
-    #video, #preview {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: none;
-    }
-
+    body { font-family: system-ui, sans-serif; background: #f4f6f8; padding: 20px; }
+    .card { background: #fff; padding: 20px; border-radius: 12px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .video-wrapper { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+    #video, #preview { width: 100%; height: 100%; object-fit: cover; display: none; }
     #video.active, #preview.active { display: block; }
-
-    .buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-    }
-
-    button, .file-label {
-      border: none;
-      border-radius: 8px;
-      padding: 12px 20px;
-      font-size: 1rem;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-family: inherit;
-    }
-
-    button:disabled { opacity: .4; cursor: not-allowed; }
-
+    .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
+    button { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
     .primary { background: #2563eb; color: #fff; }
-    .primary:hover:not(:disabled) { background: #1d4ed8; }
-
     .secondary { background: #e5e7eb; color: #111; }
-    .secondary:hover:not(:disabled) { background: #d1d5db; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .form-group label { font-weight: 500; font-size: .9rem; }
+    .form-group input { padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
+    #status { text-align: center; font-weight: 500; color: #2563eb; min-height: 24px; }
   </style>
 </head>
 <body>
-
-  <header>
-    <h1>📷 Teste de Câmara</h1>
-  </header>
-
-  <main class="card">
+  <div class="card">
+    <h2 style="text-align:center;">📷 Leitor de Cartões</h2>
+    
     <div class="video-wrapper">
       <video id="video" autoplay playsinline muted></video>
       <canvas id="canvas" style="display:none;"></canvas>
       <img id="preview" alt="Pré-visualização" />
     </div>
 
+    <div id="status"></div>
+
     <div class="buttons">
-      <button id="btnStart" class="primary" type="button">📷 Ligar câmara</button>
-      <button id="btnStop" class="secondary" type="button" disabled>⏹️ Desligar</button>
-      <button id="btnCapture" class="primary" type="button" disabled>📸 Tirar foto</button>
-      <button id="btnRetry" class="secondary" type="button" disabled>🔄 Repetir</button>
+      <button id="btnStart" class="primary">📷 Ligar câmara</button>
+      <button id="btnStop" class="secondary" disabled>⏹️ Desligar</button>
+      <button id="btnCapture" class="primary" disabled>📸 Tirar foto</button>
+      <button id="btnRetry" class="secondary" disabled>🔄 Repetir</button>
     </div>
-  </main>
+
+    <hr>
+
+    <form id="contactForm">
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="nome" />
+      </div>
+      <div class="form-group">
+        <label>Empresa</label>
+        <input type="text" id="empresa" />
+      </div>
+      <div class="form-group">
+        <label>Telefone</label>
+        <input type="tel" id="telefone" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" />
+      </div>
+    </form>
+  </div>
 
   <script src="/app.js"></script>
 </body>
