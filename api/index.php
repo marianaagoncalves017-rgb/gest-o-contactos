@@ -1,15 +1,12 @@
 <?php
 // ============================================================
-//  Configuração inicial
+//  api/index.php — Gestão Inteligente de Contactos
+//  Versão compatível com Vercel (sem sessões PHP persistentes)
 // ============================================================
 declare(strict_types=1);
-session_start();
 
-// Se mais tarde quiseres ligar à BD, descomenta:
-// require_once __DIR__ . '/db.php';
-
-$flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
+// Na Vercel não usamos session_start() — não há persistência.
+// Os contactos ficam no localStorage do browser (app.js).
 ?>
 <!DOCTYPE html>
 <html lang="pt">
@@ -76,19 +73,6 @@ unset($_SESSION['flash']);
       color: #666;
       margin: 12px 0 0;
     }
-
-    /* =========================================================
-       MENSAGENS FLASH
-       ========================================================= */
-    .flash {
-      max-width: 720px;
-      margin: 16px auto 0;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: .9rem;
-    }
-    .flash--success { background: #d1fae5; color: #065f46; }
-    .flash--error   { background: #fee2e2; color: #991b1b; }
 
     /* =========================================================
        VÍDEO / IMAGEM
@@ -218,12 +202,6 @@ unset($_SESSION['flash']);
     <p>Registe contactos manualmente ou a partir de um cartão de visita.</p>
   </header>
 
-  <?php if ($flash): ?>
-    <div class="flash flash--<?= htmlspecialchars($flash['tipo']) ?>">
-      <?= htmlspecialchars($flash['msg']) ?>
-    </div>
-  <?php endif; ?>
-
   <main>
 
     <!-- =========================================================
@@ -233,7 +211,7 @@ unset($_SESSION['flash']);
       <h2>1. Capturar cartão de visita</h2>
 
       <div class="video-wrapper">
-        <video id="video" autoplay playsinline></video>
+        <video id="video" autoplay playsinline muted></video>
         <canvas id="canvas" style="display:none;"></canvas>
         <img id="preview" alt="Pré-visualização do cartão" />
       </div>
@@ -250,7 +228,7 @@ unset($_SESSION['flash']);
         </label>
       </div>
 
-      <p class="hint">👉 Quando tiveres a foto, preenche o formulário abaixo (ou usa o OCR mais tarde).</p>
+      <p class="hint">👉 Quando tiveres a foto, preenche o formulário abaixo.</p>
     </section>
 
     <!-- =========================================================
@@ -259,9 +237,7 @@ unset($_SESSION['flash']);
     <section class="card">
       <h2>2. Dados do contacto</h2>
 
-      <form id="contactForm" method="post" action="index.php">
-        <input type="hidden" name="acao" value="criar" />
-
+      <form id="contactForm">
         <label>Nome
           <input type="text" name="nome" required maxlength="120" />
         </label>
@@ -297,6 +273,6 @@ unset($_SESSION['flash']);
 
   </main>
 
-  <script src="app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>
