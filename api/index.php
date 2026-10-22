@@ -4,32 +4,141 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leitor de Cartões - OCR</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: system-ui, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .card { background: #fff; border-radius: 8px; padding: 20px; max-width: 500px; width: 100%; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .video-container { position: relative; background: #000; border-radius: 6px; overflow: hidden; margin-bottom: 12px; height: 300px; display: flex; align-items: center; justify-content: center; }
-        video, canvas { width: 100%; height: 100%; object-fit: cover; }
-        canvas { display: none; }
-        .preview.active canvas { display: block; }
-        .preview.active video { display: none; }
-        .buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-        button { padding: 8px 16px; border: none; border-radius: 4px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
-        .btn-primary { background: #1a73e8; color: #fff; }
-        .btn-secondary { background: #e8eaed; color: #3c4043; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .status { margin-bottom: 12px; font-size: 14px; color: #5f6368; min-height: 20px; }
-        .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-        label { font-size: 12px; color: #5f6368; }
-        input { padding: 8px; border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; }
-        h2 { text-align: center; margin-top: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+            font-size: 20px;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 260px;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video, canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        .preview.active canvas {
+            display: block;
+        }
+
+        .preview.active video {
+            display: none;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            justify-content: space-between;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 16px;
+            min-height: 18px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: #4b5563;
+            margin-bottom: 4px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: #2563eb;
+        }
     </style>
 </head>
 <body>
+
     <div class="card">
         <h2>📷 Leitor de Cartões</h2>
-        
+
         <div class="video-container preview" id="preview">
             <video id="video" autoplay playsinline></video>
             <canvas id="canvas"></canvas>
@@ -46,154 +155,24 @@
 
         <form id="cardForm">
             <div class="form-group">
-                <label>Nome</label>
+                <label for="inputName">Nome</label>
                 <input type="text" id="inputName">
             </div>
             <div class="form-group">
-                <label>Empresa</label>
+                <label for="inputCompany">Empresa</label>
                 <input type="text" id="inputCompany">
             </div>
             <div class="form-group">
-                <label>Telefone</label>
+                <label for="inputPhone">Telefone</label>
                 <input type="text" id="inputPhone">
             </div>
             <div class="form-group">
-                <label>Email</label>
+                <label for="inputEmail">Email</label>
                 <input type="email" id="inputEmail">
             </div>
         </form>
     </div>
 
-    <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const video = document.getElementById("video");
-        const canvas = document.getElementById("canvas");
-        const preview = document.getElementById("preview");
-        const btnStart = document.getElementById("btnStart");
-        const btnStop = document.getElementById("btnStop");
-        const btnCapture = document.getElementById("btnCapture");
-        const btnRepeat = document.getElementById("btnRepeat");
-        const statusText = document.getElementById("statusText");
-
-        const inputName = document.getElementById("inputName");
-        const inputCompany = document.getElementById("inputCompany");
-        const inputPhone = document.getElementById("inputPhone");
-        const inputEmail = document.getElementById("inputEmail");
-
-        let stream = null;
-
-        async function ligarCamera() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                statusText.textContent = "❌ O navegador não suporta acesso à câmara ou o site não está em HTTPS.";
-                return;
-            }
-
-            try {
-                statusText.textContent = "A iniciar câmara...";
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment" },
-                    audio: false
-                });
-
-                video.srcObject = stream;
-                video.setAttribute("playsinline", true);
-                await video.play();
-
-                preview.classList.remove("active");
-                btnStart.disabled = true;
-                btnStop.disabled = false;
-                btnCapture.disabled = false;
-                btnRepeat.disabled = true;
-                statusText.textContent = "";
-            } catch (err) {
-                console.error("Erro ao aceder à câmara:", err);
-                if (err.name === "NotAllowedError") {
-                    statusText.textContent = "❌ Permissão da câmara negada pelo utilizador.";
-                } else if (err.name === "NotFoundError") {
-                    statusText.textContent = "❌ Nenhuma câmara encontrada neste dispositivo.";
-                } else {
-                    statusText.textContent = "❌ Erro ao ligar câmara: " + err.message;
-                }
-            }
-        }
-
-        function desligarCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            video.srcObject = null;
-            preview.classList.remove("active");
-
-            btnStart.disabled = false;
-            btnStop.disabled = true;
-            btnCapture.disabled = true;
-        }
-
-        function tirarFoto() {
-            if (!stream) return;
-
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            preview.classList.add("active");
-            btnCapture.disabled = true;
-            btnRepeat.disabled = false;
-
-            processarOCR(canvas.toDataURL("image/png"));
-        }
-
-        function repetir() {
-            preview.classList.remove("active");
-            btnCapture.disabled = false;
-            btnRepeat.disabled = true;
-
-            inputName.value = "";
-            inputCompany.value = "";
-            inputPhone.value = "";
-            inputEmail.value = "";
-            statusText.textContent = "";
-        }
-
-        async function processarOCR(imageData) {
-            statusText.textContent = "⏳ A extrair dados do cartão...";
-
-            try {
-                if (typeof Tesseract === "undefined") {
-                    throw new Error("O leitor de texto não carregou.");
-                }
-
-                const worker = await Tesseract.createWorker("por");
-                const { data: { text } } = await worker.recognize(imageData);
-                await worker.terminate();
-
-                const emails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-                if (emails) inputEmail.value = emails[0];
-
-                const phones = text.match(/(?:\+351\s?)?(?:9[1236]\d{7}|2\d{8})/g);
-                if (phones) inputPhone.value = phones[0];
-
-                const linhas = text.split("\n").map(l => l.trim()).filter(l => l.length > 2);
-                if (linhas.length > 0) inputName.value = linhas[0];
-                if (linhas.length > 1) inputCompany.value = linhas[1];
-
-                statusText.textContent = "✅ Dados preenchidos!";
-            } catch (err) {
-                console.error("Erro no OCR:", err);
-                statusText.textContent = "❌ Erro ao ler o texto. Tente novamente.";
-            }
-        }
-
-        btnStart.addEventListener("click", ligarCamera);
-        btnStop.addEventListener("click", desligarCamera);
-        btnCapture.addEventListener("click", tirarFoto);
-        btnRepeat.addEventListener("click", repetir);
-
-        window.addEventListener("beforeunload", desligarCamera);
-    });
-    </script>
+    <script src="app.js" defer></script>
 </body>
 </html>
