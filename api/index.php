@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Leitor de Cartões - OCR</title>
   
-  <!-- Tesseract.js -->
   <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   
   <style>
@@ -67,7 +66,6 @@
     </form>
   </div>
 
-  <!-- CÓDIGO JS AQUI DENTRO -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const video      = document.getElementById('video');
@@ -88,34 +86,21 @@
 
       async function ligarCamera() {
         if (stream) return;
-
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          alert("O teu navegador não suporta acesso à câmara ou não estás em HTTPS.");
+          alert("O navegador não suporta acesso à câmara.");
           return;
         }
-
         try {
           stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
           video.srcObject = stream;
           video.classList.add('active');
           preview.classList.remove('active');
-
-          btnStart.disabled   = true;
-          btnStop.disabled    = false;
+          btnStart.disabled = true;
+          btnStop.disabled = false;
           btnCapture.disabled = false;
           statusEl.textContent = '';
-
         } catch (err) {
-          console.error('Erro na câmara:', err);
-          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            alert('ERRO: Permissão negada!\n\nPermite o acesso à câmara no teu browser.');
-          } else if (err.name === 'NotFoundError') {
-            alert('ERRO: Nenhuma câmara encontrada neste dispositivo.');
-          } else if (err.name === 'NotReadableError') {
-            alert('ERRO: A câmara está a ser usada por outro programa.');
-          } else {
-            alert('Erro ao ligar a câmara: ' + err.message);
-          }
+          alert('Erro ao ligar câmara: ' + err.message);
         }
       }
 
@@ -126,28 +111,22 @@
         }
         video.srcObject = null;
         video.classList.remove('active');
-
-        btnStart.disabled   = false;
-        btnStop.disabled    = true;
+        btnStart.disabled = false;
+        btnStop.disabled = true;
         btnCapture.disabled = true;
       }
 
       function tirarFoto() {
         if (!stream) return;
-
         canvas.width  = video.videoWidth;
         canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/png');
         preview.src = dataUrl;
         preview.classList.add('active');
         video.classList.remove('active');
-
         desligarCamera();
         btnRetry.disabled = false;
-
         processarOCR(dataUrl);
       }
 
@@ -155,24 +134,20 @@
         preview.src = '';
         preview.classList.remove('active');
         btnRetry.disabled = true;
-        
         inputNome.value = '';
         inputEmpresa.value = '';
         inputTelefone.value = '';
         inputEmail.value = '';
         statusEl.textContent = '';
-
         ligarCamera();
       }
 
       async function processarOCR(imageData) {
         statusEl.textContent = '🔍 A extrair dados do cartão...';
-        
         if (typeof Tesseract === 'undefined') {
-          statusEl.textContent = '❌ Erro: O leitor de texto não carregou. Verifica a internet.';
+          statusEl.textContent = '❌ Erro: O leitor de texto não carregou.';
           return;
         }
-
         try {
           const worker = await Tesseract.createWorker('por+eng');
           const ret = await worker.recognize(imageData);
@@ -190,12 +165,11 @@
           if (linhas.length > 0) inputNome.value = linhas[0];
           if (linhas.length > 1) inputEmpresa.value = linhas[1];
 
-          statusEl.textContent = '✅ Dados preenchidos! Podes corrigir se algo estiver errado.';
+          statusEl.textContent = '✅ Dados preenchidos!';
           await worker.terminate();
-
         } catch (err) {
           console.error('Erro no OCR:', err);
-          statusEl.textContent = '❌ Erro ao ler o texto. Tenta novamente.';
+          statusEl.textContent = '❌ Erro ao ler o texto.';
         }
       }
 
@@ -203,7 +177,6 @@
       btnStop.addEventListener('click', desligarCamera);
       btnCapture.addEventListener('click', tirarFoto);
       btnRetry.addEventListener('click', repetir);
-
       window.addEventListener('beforeunload', desligarCamera);
     });
   </script>
