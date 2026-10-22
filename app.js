@@ -11,19 +11,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let stream = null;
 
   // ==========================================
-  // 1. CÂMARA (A prioridade máxima)
+  // 1. CÂMARA (Exatamente como funcionava)
   // ==========================================
   async function ligarCamera() {
     if (stream) return;
     
-    // Verifica se a API existe
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert("O teu navegador não suporta acesso à câmara ou a ligação não é segura (HTTPS).");
+      alert("O navegador não suporta câmara ou não estás em HTTPS.");
       return;
     }
 
     try {
-      // Removemos o facingMode para garantir compatibilidade com o PC
+      // Usa a câmara padrão (sem forçar facingMode)
       stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       video.srcObject = stream;
       video.classList.add('active');
@@ -66,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     desligarCamera();
     btnRetry.disabled = false;
     
-    // Inicia o OCR
+    // Dispara o preenchimento automático
     processarOCR(dataUrl);
   }
 
@@ -75,23 +74,24 @@ document.addEventListener('DOMContentLoaded', () => {
     preview.classList.remove('active');
     btnRetry.disabled = true;
     statusEl.textContent = '';
-    // Limpar campos
+    
+    // Limpa os campos para o próximo cartão
     document.getElementById('nome').value = '';
     document.getElementById('empresa').value = '';
     document.getElementById('telefone').value = '';
     document.getElementById('email').value = '';
+    
     ligarCamera();
   }
 
   // ==========================================
-  // 2. OCR (Tesseract.js)
+  // 2. OCR (Apenas depois de tirar a foto)
   // ==========================================
   async function processarOCR(imageData) {
-    statusEl.textContent = '🔍 A ler o cartão... aguarda uns segundos.';
+    statusEl.textContent = '🔍 A extrair dados do cartão...';
     
-    // Verifica se o Tesseract foi carregado da internet
     if (typeof Tesseract === 'undefined') {
-      statusEl.textContent = '❌ Erro: Biblioteca de OCR não carregada (verifica a internet).';
+      statusEl.textContent = '❌ Erro: O leitor de texto não carregou. Verifica a internet.';
       return;
     }
 
@@ -99,38 +99,33 @@ document.addEventListener('DOMContentLoaded', () => {
       const worker = await Tesseract.createWorker('por+eng');
       const ret = await worker.recognize(imageData);
       const texto = ret.data.text;
-      console.log('Texto detetado:', texto);
 
-      // Email
+      // Extrair Email
       const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
       const emails = texto.match(emailRegex);
-      if (emails && emails.length > 0) {
-        document.getElementById('email').value = emails[0];
-      }
+      if (emails) document.getElementById('email').value = emails[0];
 
-      // Telefone
+      // Extrair Telefone
       const phoneRegex = /(\+?\d[\d\s\-().]{7,}\d)/g;
       const phones = texto.match(phoneRegex);
-      if (phones && phones.length > 0) {
-        document.getElementById('telefone').value = phones[0].trim();
-      }
+      if (phones) document.getElementById('telefone').value = phones[0].trim();
 
-      // Nome / Empresa (Heurística de linhas)
+      // Nome / Empresa (heurística básica: as primeiras duas linhas)
       const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 2);
       if (linhas.length > 0) document.getElementById('nome').value = linhas[0];
       if (linhas.length > 1) document.getElementById('empresa').value = linhas[1];
 
-      statusEl.textContent = '✅ Leitura concluída! Corrige os campos se necessário.';
+      statusEl.textContent = '✅ Dados preenchidos! Podes corrigir se algo estiver errado.';
       await worker.terminate();
 
     } catch (err) {
       console.error('Erro no OCR:', err);
-      statusEl.textContent = '❌ Erro ao processar imagem. Tenta outra vez.';
+      statusEl.textContent = '❌ Erro ao ler o texto. Tenta novamente.';
     }
   }
 
   // ==========================================
-  // 3. EVENTOS
+  // 3. Eventos
   // ==========================================
   btnStart.addEventListener('click', ligarCamera);
   btnStop.addEventListener('click', desligarCamera);
