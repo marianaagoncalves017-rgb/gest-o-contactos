@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Leitor de Cartões - OCR</title>
   
-  <!-- Tesseract.js - Versão Estável via CDN -->
+  <!-- Tesseract.js -->
   <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   
   <style>
