@@ -205,7 +205,6 @@
 
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: "environment",
                         width: { ideal: 1920 },
                         height: { ideal: 1080 }
                     },
@@ -226,12 +225,7 @@
             } catch (err) {
                 console.error("Erro na câmara:", err);
                 statusText.style.color = "#ef4444";
-                
-                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                    alert("Acesso bloqueado! Clica no ícone do CADEADO 🔒 junto ao URL e permite a câmara.");
-                } else {
-                    alert("Erro ao ligar câmara: " + err.message);
-                }
+                alert("Erro ao ligar câmara: " + err.message);
             }
         }
 
@@ -252,11 +246,13 @@
         function tirarFoto() {
             if (!stream) return;
 
-            // Captura instantânea
             canvas.width = video.videoWidth || 1280;
             canvas.height = video.videoHeight || 720;
 
             const ctx = canvas.getContext('2d');
+            
+            // Aplica um filtro de contraste para destacar as letras do fundo
+            ctx.filter = 'contrast(130%) brightness(105%)';
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             preview.classList.add('active');
@@ -281,8 +277,8 @@
                 if (typeof Tesseract === 'undefined') throw new Error("Biblioteca OCR não carregada");
 
                 const worker = await Tesseract.createWorker();
-                await worker.loadLanguage('eng+por');
-                await worker.initialize('eng+por');
+                await worker.loadLanguage('por+eng');
+                await worker.initialize('por+eng');
 
                 const { data: { text } } = await worker.recognize(imageData);
                 await worker.terminate();
@@ -304,7 +300,7 @@
 
                 const linhas = text.split("\n")
                     .map(l => l.replace(/[^a-zA-ZÀ-ÿ0-9\s/.-]/g, '').trim())
-                    .filter(l => l.length > 3);
+                    .filter(l => l.length > 2);
 
                 if (linhas.length > 0) inputName.value = linhas[0];
                 if (linhas.length > 1) inputCompany.value = linhas[1];
@@ -313,7 +309,7 @@
                 statusText.textContent = "✅ Leitura concluída!";
             } catch (err) {
                 statusText.style.color = "#ef4444";
-                statusText.textContent = "❌ Não foi possível ler o texto. Tenta aproximar o cartão da mesa.";
+                statusText.textContent = "❌ Não foi possível ler o texto. Aponta o cartão fixo à câmara.";
             }
         }
 
