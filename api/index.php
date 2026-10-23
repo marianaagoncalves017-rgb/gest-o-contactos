@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leitor de Cartões - OCR</title>
+    <title>Leitor de Cartões - OCR (Frente & Verso)</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         * {
@@ -148,8 +148,9 @@
         <div class="buttons">
             <button class="btn-primary" id="btnStart">📷 Ligar câmara</button>
             <button class="btn-secondary" id="btnFlip" disabled>🔄 Virar câmara</button>
-            <button class="btn-secondary" id="btnCapture" disabled>📸 Tirar foto</button>
-            <button class="btn-secondary" id="btnRepeat" disabled>🔁 Repetir</button>
+            <button class="btn-primary" id="btnCapture" disabled>📸 Tirar Foto Frente</button>
+            <button class="btn-primary" id="btnCaptureBack" disabled>📸 Tirar Foto Verso</button>
+            <button class="btn-secondary" id="btnRepeat" disabled>🔁 Limpar / Recomeçar</button>
             <button class="btn-secondary" id="btnStop" disabled style="flex: 1 1 100%;">⏹️ Desligar</button>
         </div>
 
@@ -184,6 +185,7 @@
         const btnFlip = document.getElementById('btnFlip');
         const btnStop = document.getElementById('btnStop');
         const btnCapture = document.getElementById('btnCapture');
+        const btnCaptureBack = document.getElementById('btnCaptureBack');
         const btnRepeat = document.getElementById('btnRepeat');
         const statusText = document.getElementById('statusText');
 
@@ -193,7 +195,7 @@
         const inputEmail = document.getElementById('inputEmail');
 
         let stream = null;
-        let currentFacingMode = "environment"; // "environment" = traseira, "user" = frontal
+        let currentFacingMode = "environment";
 
         async function ligarCamera() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -201,7 +203,6 @@
                 return;
             }
 
-            // Se já existir um stream ativo, para as faixas antes de iniciar a nova câmara
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
@@ -212,12 +213,9 @@
                 statusText.textContent = "A pedir permissão da câmara...";
 
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: { exact: currentFacingMode }
-                    },
+                    video: { facingMode: { exact: currentFacingMode } },
                     audio: false
                 }).catch(async () => {
-                    // Fallback para caso o dispositivo não suporte "exact"
                     return await navigator.mediaDevices.getUserMedia({
                         video: { facingMode: currentFacingMode },
                         audio: false
@@ -233,7 +231,8 @@
                 btnFlip.disabled = false;
                 btnStop.disabled = false;
                 btnCapture.disabled = false;
-                btnRepeat.disabled = true;
+                btnCaptureBack.disabled = false;
+                btnRepeat.disabled = false;
                 statusText.textContent = "";
 
             } catch (err) {
@@ -260,11 +259,12 @@
             btnFlip.disabled = true;
             btnStop.disabled = true;
             btnCapture.disabled = true;
+            btnCaptureBack.disabled = true;
             btnRepeat.disabled = true;
             statusText.textContent = "";
         }
 
-        function tirarFoto() {
+        function capturarImagem(lado) {
             if (!stream) return;
 
             canvas.width = video.videoWidth || 1280;
@@ -272,10 +272,6 @@
 
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            preview.classList.add('active');
-            btnCapture.disabled = true;
-            btnRepeat.disabled = false;
 
             const processCanvas = document.createElement('canvas');
             const pCtx = processCanvas.getContext('2d');
@@ -286,19 +282,21 @@
             pCtx.filter = 'contrast(160%) grayscale(100%)';
             pCtx.drawImage(canvas, 0, 0);
 
-            processarOCR(processCanvas.toDataURL('image/png'));
+            processarOCR(processCanvas.toDataURL('image/png'), lado);
         }
 
-        function repetir() {
+        function recomecar() {
             preview.classList.remove('active');
-            btnCapture.disabled = false;
-            btnRepeat.disabled = true;
+            inputName.value = "";
+            inputCompany.value = "";
+            inputPhone.value = "";
+            inputEmail.value = "";
             statusText.textContent = "";
         }
 
-        async function processarOCR(imageData) {
+        async function processarOCR(imageData, lado) {
             statusText.style.color = "#3b82f6";
-            statusText.textContent = "⏳ A ler texto do cartão...";
+            statusText.textContent = `⏳ A ler texto da foto (${lado})...`;
 
             try {
                 if (typeof Tesseract === 'undefined') throw new Error("Biblioteca OCR não carregada");
@@ -310,31 +308,32 @@
                 const { data: { text } } = await worker.recognize(imageData);
                 await worker.terminate();
 
-                console.log("TEXTO BRUTO DETETADO:\n", text);
+                console.log(`TEXTO DETETADO (${lado}):\n`, text);
 
                 if (!text || text.trim().length === 0) {
                     throw new Error("Sem texto detetado");
                 }
 
-                inputName.value = "";
-                inputCompany.value = "";
-                inputPhone.value = "";
-                inputEmail.value = "";
+                let camposEncontrados = 0;
 
+                // 1. EMAIL (Apenas preenche se encontrar e o campo estiver vazio)
                 const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
                 if (emailMatch) {
-                    inputEmail.value = emailMatch[0].toLowerCase()
-                        .replace('gerol@', 'geral@')
-                        .replace('.etpe.', '.etpc.');
+                    let email = emailMatch[0].toLowerCase().replace('gerol@', 'geral@').replace('.etpe.', '.etpc.');
+                    inputEmail.value = email;
+                    camposEncontrados++;
                 }
 
+                // 2. TELEFONE (Apenas preenche se encontrar)
                 const phoneMatch = text.match(/(?:\+351\s?)?(?:2\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|9[1236]\d{1}[\s.-]?\d{3}[\s.-]?\d{3})/g);
                 if (phoneMatch) {
                     let phone = phoneMatch[0].replace(/\s+/g, '');
                     if (phone.startsWith('251')) phone = '231' + phone.slice(3);
                     inputPhone.value = phone;
+                    camposEncontrados++;
                 }
 
+                // 3. NOME E EMPRESA
                 const linhasLimpas = text.split('\n')
                     .map(l => l.trim())
                     .filter(l => {
@@ -345,34 +344,42 @@
                     });
 
                 if (linhasLimpas.length > 0) {
+                    // Procura empresa se o campo ainda estiver vazio
                     const idxEmpresa = linhasLimpas.findIndex(l => /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa)/i.test(l));
-                    if (idxEmpresa !== -1) {
+                    if (idxEmpresa !== -1 && !inputCompany.value) {
                         inputCompany.value = linhasLimpas[idxEmpresa];
                         linhasLimpas.splice(idxEmpresa, 1);
+                        camposEncontrados++;
                     }
 
+                    // Procura nome se o campo ainda estiver vazio
                     const linhaNome = linhasLimpas.find(l => /[a-zA-Z]{3,}/.test(l) && !/^(rua|av|avenida|3060)/i.test(l));
-                    if (linhaNome) {
+                    if (linhaNome && !inputName.value) {
                         inputName.value = linhaNome;
-                    } else if (linhasLimpas.length > 0) {
-                        inputName.value = linhasLimpas[0];
+                        camposEncontrados++;
                     }
                 }
 
                 statusText.style.color = "#10b981";
-                statusText.textContent = "✅ Leitura concluída!";
+                if (camposEncontrados > 0) {
+                    statusText.textContent = `✅ Leitura da foto (${lado}) concluída!`;
+                } else {
+                    statusText.textContent = `ℹ️ Leitura concluída (${lado}), mas nenhum campo novo foi identificado.`;
+                }
+
             } catch (err) {
                 console.error("Erro no OCR:", err);
                 statusText.style.color = "#ef4444";
-                statusText.textContent = "❌ Não foi possível ler o texto. Aproxima mais o cartão da câmara.";
+                statusText.textContent = "❌ Não foi possível ler texto legível nesta captura.";
             }
         }
 
         btnStart.addEventListener('click', ligarCamera);
         btnFlip.addEventListener('click', alternarCamera);
         btnStop.addEventListener('click', desligarCamera);
-        btnCapture.addEventListener('click', tirarFoto);
-        btnRepeat.addEventListener('click', repetir);
+        btnCapture.addEventListener('click', () => capturarImagem('Frente'));
+        btnCaptureBack.addEventListener('click', () => capturarImagem('Verso'));
+        btnRepeat.addEventListener('click', recomecar);
     });
     </script>
 </body>
