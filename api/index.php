@@ -72,13 +72,14 @@
 
         .buttons {
             display: flex;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
             margin-bottom: 24px;
             justify-content: space-between;
         }
 
         button {
-            flex: 1;
+            flex: 1 1 calc(50% - 10px);
             padding: 10px 14px;
             border: none;
             border-radius: 8px;
@@ -146,9 +147,10 @@
 
         <div class="buttons">
             <button class="btn-primary" id="btnStart">📷 Ligar câmara</button>
-            <button class="btn-secondary" id="btnStop" disabled>⏹️ Desligar</button>
-            <button class="btn-secondary" id="btnCapture" disabled>📷 Tirar foto</button>
-            <button class="btn-secondary" id="btnRepeat" disabled>🔄 Repetir</button>
+            <button class="btn-secondary" id="btnFlip" disabled>🔄 Virar câmara</button>
+            <button class="btn-secondary" id="btnCapture" disabled>📸 Tirar foto</button>
+            <button class="btn-secondary" id="btnRepeat" disabled>🔁 Repetir</button>
+            <button class="btn-secondary" id="btnStop" disabled style="flex: 1 1 100%;">⏹️ Desligar</button>
         </div>
 
         <div class="status" id="statusText"></div>
@@ -179,6 +181,7 @@
         const canvas = document.getElementById('canvas');
         const preview = document.getElementById('preview');
         const btnStart = document.getElementById('btnStart');
+        const btnFlip = document.getElementById('btnFlip');
         const btnStop = document.getElementById('btnStop');
         const btnCapture = document.getElementById('btnCapture');
         const btnRepeat = document.getElementById('btnRepeat');
@@ -190,13 +193,18 @@
         const inputEmail = document.getElementById('inputEmail');
 
         let stream = null;
+        let currentFacingMode = "environment"; // "environment" = traseira, "user" = frontal
 
         async function ligarCamera() {
-            if (stream) return;
-
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 alert("O teu navegador não suporta a API de câmara neste endereço.");
                 return;
+            }
+
+            // Se já existir um stream ativo, para as faixas antes de iniciar a nova câmara
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
             }
 
             try {
@@ -205,10 +213,15 @@
 
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
+                        facingMode: { exact: currentFacingMode }
                     },
                     audio: false
+                }).catch(async () => {
+                    // Fallback para caso o dispositivo não suporte "exact"
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: currentFacingMode },
+                        audio: false
+                    });
                 });
 
                 video.srcObject = stream;
@@ -217,6 +230,7 @@
 
                 preview.classList.remove('active');
                 btnStart.disabled = true;
+                btnFlip.disabled = false;
                 btnStop.disabled = false;
                 btnCapture.disabled = false;
                 btnRepeat.disabled = true;
@@ -229,6 +243,11 @@
             }
         }
 
+        function alternarCamera() {
+            currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+            ligarCamera();
+        }
+
         function desligarCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
@@ -238,8 +257,10 @@
             preview.classList.remove('active');
 
             btnStart.disabled = false;
+            btnFlip.disabled = true;
             btnStop.disabled = true;
             btnCapture.disabled = true;
+            btnRepeat.disabled = true;
             statusText.textContent = "";
         }
 
@@ -348,6 +369,7 @@
         }
 
         btnStart.addEventListener('click', ligarCamera);
+        btnFlip.addEventListener('click', alternarCamera);
         btnStop.addEventListener('click', desligarCamera);
         btnCapture.addEventListener('click', tirarFoto);
         btnRepeat.addEventListener('click', repetir);
