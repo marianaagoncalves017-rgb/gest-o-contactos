@@ -204,7 +204,11 @@
                 statusText.textContent = "A pedir permissão da câmara...";
 
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment" },
+                    video: { 
+                        facingMode: "environment",
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
                     audio: false
                 });
 
@@ -248,8 +252,9 @@
         function tirarFoto() {
             if (!stream) return;
 
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
+            // Captura instantânea
+            canvas.width = video.videoWidth || 1280;
+            canvas.height = video.videoHeight || 720;
 
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -275,25 +280,40 @@
             try {
                 if (typeof Tesseract === 'undefined') throw new Error("Biblioteca OCR não carregada");
 
-                const worker = await Tesseract.createWorker("por");
+                const worker = await Tesseract.createWorker();
+                await worker.loadLanguage('eng+por');
+                await worker.initialize('eng+por');
+
                 const { data: { text } } = await worker.recognize(imageData);
                 await worker.terminate();
+
+                if (!text || text.trim().length === 0) {
+                    throw new Error("Sem texto detetado");
+                }
+
+                inputName.value = "";
+                inputCompany.value = "";
+                inputPhone.value = "";
+                inputEmail.value = "";
 
                 const emails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
                 if (emails) inputEmail.value = emails[0];
 
-                const phones = text.match(/(?:\+351\s?)?(?:9[1236]\d{7}|2\d{8})/g);
+                const phones = text.match(/(?:\+351\s?)?(?:9[1236]\d{7}|2\d{8}|\d{3}\s?\d{3}\s?\d{3})/g);
                 if (phones) inputPhone.value = phones[0];
 
-                const linhas = text.split("\n").map(l => l.trim()).filter(l => l.length > 2);
+                const linhas = text.split("\n")
+                    .map(l => l.replace(/[^a-zA-ZÀ-ÿ0-9\s/.-]/g, '').trim())
+                    .filter(l => l.length > 3);
+
                 if (linhas.length > 0) inputName.value = linhas[0];
                 if (linhas.length > 1) inputCompany.value = linhas[1];
 
                 statusText.style.color = "#10b981";
-                statusText.textContent = "✅ Processado com sucesso!";
+                statusText.textContent = "✅ Leitura concluída!";
             } catch (err) {
                 statusText.style.color = "#ef4444";
-                statusText.textContent = "❌ Não foi possível ler o texto.";
+                statusText.textContent = "❌ Não foi possível ler o texto. Tenta aproximar o cartão da mesa.";
             }
         }
 
