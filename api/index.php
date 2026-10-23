@@ -251,15 +251,33 @@
 
             const ctx = canvas.getContext('2d');
             
-            // Aplica um filtro de contraste para destacar as letras do fundo
-            ctx.filter = 'contrast(130%) brightness(105%)';
+            // Desenha a imagem completa no canvas visual
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             preview.classList.add('active');
             btnCapture.disabled = true;
             btnRepeat.disabled = false;
 
-            processarOCR(canvas.toDataURL('image/png'));
+            // Criar um canvas secundário para cortar a parte superior (onde ficam os logótipos)
+            const croppedCanvas = document.createElement('canvas');
+            const croppedCtx = croppedCanvas.getContext('2d');
+
+            // Ignora os primeiros 20% do topo da imagem onde normalmente estão os logos/bandeiras
+            const startY = canvas.height * 0.20;
+            const croppedHeight = canvas.height * 0.80;
+
+            croppedCanvas.width = canvas.width;
+            croppedCanvas.height = croppedHeight;
+
+            // Aplica contraste para clarificar o texto
+            croppedCtx.filter = 'contrast(140%) grayscale(100%)';
+            croppedCtx.drawImage(
+                canvas, 
+                0, startY, canvas.width, croppedHeight, 
+                0, 0, canvas.width, croppedHeight
+            );
+
+            processarOCR(croppedCanvas.toDataURL('image/png'));
         }
 
         function repetir() {
@@ -271,7 +289,7 @@
 
         async function processarOCR(imageData) {
             statusText.style.color = "#3b82f6";
-            statusText.textContent = "⏳ A ler dados do cartão...";
+            statusText.textContent = "⏳ A ler texto útil do cartão...";
 
             try {
                 if (typeof Tesseract === 'undefined') throw new Error("Biblioteca OCR não carregada");
@@ -283,33 +301,64 @@
                 const { data: { text } } = await worker.recognize(imageData);
                 await worker.terminate();
 
+                console.log("Texto extraído:", text);
+
                 if (!text || text.trim().length === 0) {
                     throw new Error("Sem texto detetado");
                 }
 
+                // Limpa o formulário
                 inputName.value = "";
                 inputCompany.value = "";
                 inputPhone.value = "";
                 inputEmail.value = "";
 
-                const emails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-                if (emails) inputEmail.value = emails[0];
+                // 1. Apanha Email
+                const emails = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
+                if (emails) inputEmail.value = emails[0].toLowerCase();
 
-                const phones = text.match(/(?:\+351\s?)?(?:9[1236]\d{7}|2\d{8}|\d{3}\s?\d{3}\s?\d{3})/g);
+                // 2. Apanha Telefone (fixo ou móvel PT)
+                const phones = text.match(/(?:\+351\s?)?(?:2\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|9[1236]\d{1}[\s.-]?\d{3}[\s.-]?\d{3})/g);
                 if (phones) inputPhone.value = phones[0];
 
-                const linhas = text.split("\n")
-                    .map(l => l.replace(/[^a-zA-ZÀ-ÿ0-9\s/.-]/g, '').trim())
-                    .filter(l => l.length > 2);
+                // 3. Filtra palavras irrelevantes, símbolos e termos de logótipos/governo
+                const linhasLimpas = text.split('\n')
+                    .map(l => l.trim())
+                    .filter(l => {
+                        if (l.length < 3) return false;
+                        // Exclui palavras comuns de logótipos e marcas
+                        if (/^(2030|portugal|pessoas|união|europeia|cofinanciado|estudante|student|secretaria)/i.test(l)) return false;
+                        if (/^[0-9\s._-]+$/.test(l)) return false; // descarta linhas só com números curtos/pontuação
+                        return true;
+                    });
 
-                if (linhas.length > 0) inputName.value = linhas[0];
-                if (linhas.length > 1) inputCompany.value = linhas[1];
+                // 4. Atribuição Inteligente de Nome e Empresa
+                if (linhasLimpas.length > 0) {
+                    // Procura termos conhecidos de empresa/escola
+                    const empresaIndex = linhasLimpas.findIndex(l => /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|group)/i.test(l));
+
+                    if (empresaIndex !== -1) {
+                        inputCompany.value = linhasLimpas[empresaIndex];
+                        linhasLimpas.splice(empresaIndex, 1); // remove da lista para não repetir no nome
+                    }
+
+                    // A primeira linha restante limpa é assumida como o Nome
+                    if (linhasLimpas.length > 0) {
+                        inputName.value = linhasLimpas[0];
+                    }
+
+                    // Se não tiver encontrado empresa por palavras-chave, usa a segunda linha limpa
+                    if (!inputCompany.value && linhasLimpas.length > 1) {
+                        inputCompany.value = linhasLimpas[1];
+                    }
+                }
 
                 statusText.style.color = "#10b981";
                 statusText.textContent = "✅ Leitura concluída!";
             } catch (err) {
+                console.error("Erro no OCR:", err);
                 statusText.style.color = "#ef4444";
-                statusText.textContent = "❌ Não foi possível ler o texto. Aponta o cartão fixo à câmara.";
+                statusText.textContent = "❌ Não foi possível extrair o texto. Ajusta a posição do cartão.";
             }
         }
 
