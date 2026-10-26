@@ -317,36 +317,35 @@
                     throw new Error("Sem texto detetado");
                 }
 
-                // Função utilitária para limpar rasto de código JSON/números de linha
                 const limparValor = (str) => {
                     return str
-                        .replace(/^[0-9\s:*'"`,{}[\]\\]+/, '') // Remove números de linha e símbolos no início
-                        .replace(/["'`,;{}[\]\\]+$/, '')       // Remove aspas/vírgulas no fim
-                        .replace(/^[*"'`]+|[*"'`]+$/g, '')    // Limpa asteriscos residuais
+                        .replace(/^[0-9\s:*'"`,{}[\]\\]+/, '')
+                        .replace(/["'`,;{}[\]\\]+$/, '')
+                        .replace(/^[*"'`]+|[*"'`]+$/g, '')
                         .trim();
                 };
 
-                // 1. NOME (Deteta chave "name" em JSON ou pesquisa por padrão)
+                // 1. NOME (Deteta apenas se houver formato de código "name": ou nome próprio real)
                 const nameMatch = text.match(/"?\*?name"?\s*:\s*"([^"]+)"/i);
                 if (nameMatch) {
                     inputName.value = limparValor(nameMatch[1]);
                 }
 
-                // 2. EMPRESA / CARGO (Deteta chave "title", "company" ou "empresa")
+                // 2. EMPRESA / CARGO (Deteta apenas se houver chave explícita de empresa)
                 const companyMatch = text.match(/"?\*?(?:title|company|empresa)"?\s*:\s*"([^"]+)"/i);
                 if (companyMatch) {
                     let empresaTexto = limparValor(companyMatch[1]);
-                    // Se a empresa contiver cargos conhecidos (ex: "CEO Digitextus"), limpa o cargo
                     empresaTexto = empresaTexto.replace(/^(CEO|CTO|Manager|Diretor|Director)\s+/i, '');
                     inputCompany.value = empresaTexto;
                 }
 
-                // 3. EMAIL (com ajuste para falhas de leitura como .pr em vez de .pt)
+                // 3. EMAIL (Correção automática de erros comuns de leitura como etpe/etpo para etpc)
                 const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
                 if (emailMatch) {
                     let em = emailMatch[0].toLowerCase()
                         .replace('gerol@', 'geral@')
                         .replace(/\.etp[e|o]\./g, '.etpc.')
+                        .replace(/\.etp[e|o]\.pt$/g, '.etpc.pt')
                         .replace(/\.pr$/, '.pt');
                     inputEmail.value = em;
                 }
@@ -357,41 +356,34 @@
                     inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
                 }
 
-                // 5. FALLBACK PARA CARTÕES PADRÃO (Sem formato JSON)
+                // 5. ATRIBUIÇÃO ESTRITA PARA CARTÕES TRADICIONAIS (Rejeita moradas e sites)
                 if (!inputName.value || !inputCompany.value) {
                     const linhas = text.split('\n')
                         .map(l => limparValor(l))
                         .filter(l => {
                             if (l.length < 3) return false;
                             if (/[=&#%|_^<>{}\\]/.test(l)) return false;
-                            if (/^(2030|portugal|pessoas|união|europeia|cofinanciado|estudante|student|name|title|email|url|link|phone|www\.|http)/i.test(l)) return false;
+                            // Exclui moradas, códigos postais, sites e marcas
+                            if (/^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l)) return false;
+                            if (/^(www\.|https?:\/\/|\S+\.(pt|com|org|net))/i.test(l)) return false;
+                            if (/^(2030|portugal|pessoas|união|europeia|cofinanciado|estudante|student|name|title|email|url|link|phone)/i.test(l)) return false;
                             if (l.includes('@') || /^\+?[0-9\s-]+$/.test(l)) return false;
                             return true;
                         });
 
                     if (linhas.length > 0) {
-                        // Procura empresa desconsiderando moradas e sites
                         if (!inputCompany.value) {
-                            const idxEmpresa = linhas.findIndex(l => {
-                                const ehMorada = /^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l);
-                                const ehSite = /^(www\.|https?:\/\/|\S+\.(pt|com|org|net))/i.test(l);
-                                const ehEmpresa = /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|ltda)/i.test(l);
-                                return ehEmpresa && !ehMorada && !ehSite;
-                            });
-
+                            const idxEmpresa = linhas.findIndex(l => /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|ltda)/i.test(l));
                             if (idxEmpresa !== -1) {
                                 inputCompany.value = linhas[idxEmpresa];
                                 linhas.splice(idxEmpresa, 1);
                             }
                         }
 
-                        // Procura nome próprio em maiúsculas
                         if (!inputName.value) {
                             const linhaNomeValida = linhas.find(l => {
-                                const ehMorada = /^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l);
-                                const ehSite = /^(www\.|https?:\/\/|\S+\.(pt|com|org|net))/i.test(l);
                                 const palavrasMaiusculas = l.match(/\b[A-ZÀ-Ü][a-zà-ÿ]{2,}/g);
-                                return !ehMorada && !ehSite && palavrasMaiusculas && palavrasMaiusculas.length >= 2;
+                                return palavrasMaiusculas && palavrasMaiusculas.length >= 2;
                             });
 
                             if (linhaNomeValida) {
