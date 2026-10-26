@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leitor de Cartões - OCR (Frente & Verso)</title>
+    <title>Leitor de Cartões - OCR</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         * {
@@ -148,9 +148,8 @@
         <div class="buttons">
             <button class="btn-primary" id="btnStart">📷 Ligar câmara</button>
             <button class="btn-secondary" id="btnFlip" disabled>🔄 Virar câmara</button>
-            <button class="btn-primary" id="btnCapture" disabled>📸 Tirar Foto Frente</button>
-            <button class="btn-primary" id="btnCaptureBack" disabled>📸 Tirar Foto Verso</button>
-            <button class="btn-secondary" id="btnRepeat" disabled>🔁 Limpar / Recomeçar</button>
+            <button class="btn-primary" id="btnCapture" disabled>📸 Tirar foto</button>
+            <button class="btn-secondary" id="btnRepeat" disabled>🔁 Repetir</button>
             <button class="btn-secondary" id="btnStop" disabled style="flex: 1 1 100%;">⏹️ Desligar</button>
         </div>
 
@@ -185,7 +184,6 @@
         const btnFlip = document.getElementById('btnFlip');
         const btnStop = document.getElementById('btnStop');
         const btnCapture = document.getElementById('btnCapture');
-        const btnCaptureBack = document.getElementById('btnCaptureBack');
         const btnRepeat = document.getElementById('btnRepeat');
         const statusText = document.getElementById('statusText');
 
@@ -231,8 +229,7 @@
                 btnFlip.disabled = false;
                 btnStop.disabled = false;
                 btnCapture.disabled = false;
-                btnCaptureBack.disabled = false;
-                btnRepeat.disabled = false;
+                btnRepeat.disabled = true;
                 statusText.textContent = "";
 
             } catch (err) {
@@ -259,12 +256,11 @@
             btnFlip.disabled = true;
             btnStop.disabled = true;
             btnCapture.disabled = true;
-            btnCaptureBack.disabled = true;
             btnRepeat.disabled = true;
             statusText.textContent = "";
         }
 
-        function capturarImagem(lado) {
+        function tirarFoto() {
             if (!stream) return;
 
             canvas.width = video.videoWidth || 1280;
@@ -273,30 +269,32 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+            preview.classList.add('active');
+            btnCapture.disabled = true;
+            btnRepeat.disabled = false;
+
             const processCanvas = document.createElement('canvas');
             const pCtx = processCanvas.getContext('2d');
             
             processCanvas.width = canvas.width;
             processCanvas.height = canvas.height;
 
-            pCtx.filter = 'contrast(160%) grayscale(100%)';
+            pCtx.filter = 'contrast(150%) grayscale(100%)';
             pCtx.drawImage(canvas, 0, 0);
 
-            processarOCR(processCanvas.toDataURL('image/png'), lado);
+            processarOCR(processCanvas.toDataURL('image/png'));
         }
 
-        function recomecar() {
+        function repetir() {
             preview.classList.remove('active');
-            inputName.value = "";
-            inputCompany.value = "";
-            inputPhone.value = "";
-            inputEmail.value = "";
+            btnCapture.disabled = false;
+            btnRepeat.disabled = true;
             statusText.textContent = "";
         }
 
-        async function processarOCR(imageData, lado) {
+        async function processarOCR(imageData) {
             statusText.style.color = "#3b82f6";
-            statusText.textContent = `⏳ A ler texto da foto (${lado})...`;
+            statusText.textContent = "⏳ A ler texto do cartão...";
 
             try {
                 if (typeof Tesseract === 'undefined') throw new Error("Biblioteca OCR não carregada");
@@ -308,78 +306,73 @@
                 const { data: { text } } = await worker.recognize(imageData);
                 await worker.terminate();
 
-                console.log(`TEXTO DETETADO (${lado}):\n`, text);
+                console.log("TEXTO LIDO PELO OCR:\n", text);
+
+                // Limpa sempre os campos no início de cada leitura
+                inputName.value = "";
+                inputCompany.value = "";
+                inputPhone.value = "";
+                inputEmail.value = "";
 
                 if (!text || text.trim().length === 0) {
                     throw new Error("Sem texto detetado");
                 }
 
-                let camposEncontrados = 0;
-
-                // 1. EMAIL (Apenas preenche se encontrar e o campo estiver vazio)
+                // 1. EMAIL (Apenas se houver um endereço no formato correto)
                 const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
                 if (emailMatch) {
-                    let email = emailMatch[0].toLowerCase().replace('gerol@', 'geral@').replace('.etpe.', '.etpc.');
-                    inputEmail.value = email;
-                    camposEncontrados++;
+                    inputEmail.value = emailMatch[0].toLowerCase();
                 }
 
-                // 2. TELEFONE (Apenas preenche se encontrar)
+                // 2. TELEFONE (Apenas se houver uma sequência numérica válida de contacto)
                 const phoneMatch = text.match(/(?:\+351\s?)?(?:2\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|9[1236]\d{1}[\s.-]?\d{3}[\s.-]?\d{3})/g);
                 if (phoneMatch) {
-                    let phone = phoneMatch[0].replace(/\s+/g, '');
-                    if (phone.startsWith('251')) phone = '231' + phone.slice(3);
-                    inputPhone.value = phone;
-                    camposEncontrados++;
+                    inputPhone.value = phoneMatch[0].trim();
                 }
 
-                // 3. NOME E EMPRESA
-                const linhasLimpas = text.split('\n')
+                // 3. FILTRAGEM DE LINHAS DE TEXTO
+                const linhas = text.split('\n')
                     .map(l => l.trim())
                     .filter(l => {
                         if (l.length < 3) return false;
-                        if (/^[€§|!.:;_\-=\s\d]+$/.test(l)) return false;
-                        if (/^(2030|pessoas|portugal|união|europeia|cofinanciado|secretaria|estudante|student)/i.test(l)) return false;
+                        // Elimina linhas apenas com símbolos/números soltos de logótipos (ex: 2030, UE)
+                        if (/^[0-9\s._\-+/*=?!@#$%&()]+$/.test(l)) return false;
+                        if (/^(2030|portugal|pessoas|união|europeia|cofinanciado)/i.test(l)) return false;
                         return true;
                     });
 
-                if (linhasLimpas.length > 0) {
-                    // Procura empresa se o campo ainda estiver vazio
-                    const idxEmpresa = linhasLimpas.findIndex(l => /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa)/i.test(l));
-                    if (idxEmpresa !== -1 && !inputCompany.value) {
-                        inputCompany.value = linhasLimpas[idxEmpresa];
-                        linhasLimpas.splice(idxEmpresa, 1);
-                        camposEncontrados++;
+                // 4. ATRIBUIÇÃO ESTRITA DE EMPRESA E NOME
+                if (linhas.length > 0) {
+                    // Procura explicitamente por empresas/entidades conhecidas na frase
+                    const idxEmpresa = linhas.findIndex(l => /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|ltda|group|serviços)/i.test(l));
+                    
+                    if (idxEmpresa !== -1) {
+                        inputCompany.value = linhas[idxEmpresa];
+                        linhas.splice(idxEmpresa, 1); // remove a linha da empresa para não a usar como nome
                     }
 
-                    // Procura nome se o campo ainda estiver vazio
-                    const linhaNome = linhasLimpas.find(l => /[a-zA-Z]{3,}/.test(l) && !/^(rua|av|avenida|3060)/i.test(l));
-                    if (linhaNome && !inputName.value) {
+                    // Para o Nome, só aceita se a linha tiver texto sem ser moradas (Rua/Av/Código Postal)
+                    const linhaNome = linhas.find(l => !/^(rua|av|avenida|praça|3060|nº|\d{4}-\d{3})/i.test(l) && /[a-zA-Z]{3,}/.test(l));
+                    if (linhaNome) {
                         inputName.value = linhaNome;
-                        camposEncontrados++;
                     }
                 }
 
                 statusText.style.color = "#10b981";
-                if (camposEncontrados > 0) {
-                    statusText.textContent = `✅ Leitura da foto (${lado}) concluída!`;
-                } else {
-                    statusText.textContent = `ℹ️ Leitura concluída (${lado}), mas nenhum campo novo foi identificado.`;
-                }
+                statusText.textContent = "✅ Leitura concluída!";
 
             } catch (err) {
                 console.error("Erro no OCR:", err);
                 statusText.style.color = "#ef4444";
-                statusText.textContent = "❌ Não foi possível ler texto legível nesta captura.";
+                statusText.textContent = "❌ Não foi possível ler o texto.";
             }
         }
 
         btnStart.addEventListener('click', ligarCamera);
         btnFlip.addEventListener('click', alternarCamera);
         btnStop.addEventListener('click', desligarCamera);
-        btnCapture.addEventListener('click', () => capturarImagem('Frente'));
-        btnCaptureBack.addEventListener('click', () => capturarImagem('Verso'));
-        btnRepeat.addEventListener('click', recomecar);
+        btnCapture.addEventListener('click', tirarFoto);
+        btnRepeat.addEventListener('click', repetir);
     });
     </script>
 </body>
