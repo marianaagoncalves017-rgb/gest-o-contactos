@@ -279,7 +279,7 @@
             processCanvas.width = canvas.width;
             processCanvas.height = canvas.height;
 
-            pCtx.filter = 'contrast(150%) grayscale(100%)';
+            pCtx.filter = 'contrast(160%) grayscale(100%)';
             pCtx.drawImage(canvas, 0, 0);
 
             processarOCR(processCanvas.toDataURL('image/png'));
@@ -317,54 +317,63 @@
                     throw new Error("Sem texto detetado");
                 }
 
-                // 1. EMAIL com correção automática para erros de OCR (ex: etpe -> etpc)
-                const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
-                if (emailMatch) {
-                    let emailTratado = emailMatch[0].toLowerCase();
-                    emailTratado = emailTratado.replace('.etpe.', '.etpc.').replace('.etpe.pt', '.etpc.pt');
-                    inputEmail.value = emailTratado;
+                // 1. EXTRAÇÃO POR CHAVES JSON (Caso seja cartão em formato de código)
+                const nameKey = text.match(/"?name"?\s*:\s*"([^"]+)"/i);
+                if (nameKey) inputName.value = nameKey[1].trim();
+
+                const companyKey = text.match(/"?(?:company|title)"?\s*:\s*"([^"]+)"/i);
+                if (companyKey) {
+                    // Limpa prefixos como 'CEO ' da empresa se necessário
+                    inputCompany.value = companyKey[1].replace(/^(CEO|CTO|Manager|Diretor)\s+/i, '').trim();
                 }
 
-                // 2. TELEFONE
-                const phoneMatch = text.match(/(?:\+351\s?)?(?:2\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|9[1236]\d{1}[\s.-]?\d{3}[\s.-]?\d{3})/g);
-                if (phoneMatch) {
-                    inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
+                const emailKey = text.match(/"?email"?\s*:\s*"([^"]+)"/i);
+                if (emailKey) {
+                    let em = emailKey[1].toLowerCase().replace(/[^a-z0-9@._-]/g, '');
+                    em = em.replace(/\.pr$/, '.pt').replace(/\.pt"$/, '.pt');
+                    inputEmail.value = em;
                 }
 
-                // 3. FILTRAGEM DE LINHAS
-                const linhas = text.split('\n')
-                    .map(l => l.trim())
-                    .filter(l => {
-                        if (l.length < 3) return false;
-                        if (/[=&#%|_^<>{}\\]/.test(l)) return false;
-                        if (/^(2030|portugal|pessoas|união|europeia|cofinanciado|estudante|student)/i.test(l)) return false;
-                        return true;
-                    });
+                const phoneKey = text.match(/"?phone"?\s*:\s*"([^"]+)"/i);
+                if (phoneKey) {
+                    inputPhone.value = phoneKey[1].replace(/[^\d+]/g, '');
+                }
 
-                // 4. ATRIBUIÇÃO ESTRITA DE EMPRESA E NOME
-                if (linhas.length > 0) {
-                    // Procura Empresa: EXCLUI explicitamente linhas que sejam moradas (Rua, nº, código postal)
-                    const idxEmpresa = linhas.findIndex(l => {
-                        const ehMorada = /^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l);
-                        const ehEmpresa = /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|ltda)/i.test(l);
-                        return ehEmpresa && !ehMorada;
-                    });
+                // 2. FALLBACK POR EXPRESSÕES REGULARES PADRÃO (Se não for formato JSON)
+                if (!inputEmail.value) {
+                    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
+                    if (emailMatch) {
+                        let em = emailMatch[0].toLowerCase().replace(/\.pr$/, '.pt');
+                        inputEmail.value = em;
+                    }
+                }
 
-                    if (idxEmpresa !== -1) {
-                        inputCompany.value = linhas[idxEmpresa];
-                        linhas.splice(idxEmpresa, 1);
+                if (!inputPhone.value) {
+                    const phoneMatch = text.match(/(?:\+351\s?)?(?:2\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|9[1236]\d{1}[\s.-]?\d{3}[\s.-]?\d{3})/g);
+                    if (phoneMatch) {
+                        inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
+                    }
+                }
+
+                // Limpeza geral para apanhar Nome e Empresa caso não existam chaves JSON
+                if (!inputName.value || !inputCompany.value) {
+                    const linhas = text.split('\n')
+                        .map(l => l.replace(/^[0-9{}\[\]\s"'`:,]+/, '').replace(/["'`:;,{}]+$/, '').trim())
+                        .filter(l => {
+                            if (l.length < 3) return false;
+                            if (/^(name|title|email|url|phone|www\.|http)/i.test(l)) return false;
+                            if (l.includes('@') || /^\+?[0-9\s-]+$/.test(l)) return false;
+                            return true;
+                        });
+
+                    if (linhas.length > 0 && !inputName.value) {
+                        const linhaNome = linhas.find(l => /^[A-ZÀ-Ü][a-zà-ÿ]+\s+[A-ZÀ-Ü][a-zà-ÿ]+/.test(l));
+                        if (linhaNome) inputName.value = linhaNome;
                     }
 
-                    // Procura Nome: Exige palavras em maiúsculas (Nomes Próprios) e rejeita moradas
-                    const linhaNomeValida = linhas.find(l => {
-                        const ehMorada = /^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l);
-                        // Verifica se tem pelo menos 2 palavras com inicial maiúscula (ex: Mariana Santos)
-                        const palavrasMaiusculas = l.match(/\b[A-ZÀ-Ü][a-zà-ÿ]{2,}/g);
-                        return !ehMorada && palavrasMaiusculas && palavrasMaiusculas.length >= 2;
-                    });
-
-                    if (linhaNomeValida) {
-                        inputName.value = linhaNomeValida;
+                    if (linhas.length > 0 && !inputCompany.value) {
+                        const linhaEmpresa = linhas.find(l => l !== inputName.value && /[a-zA-Z]{3,}/.test(l));
+                        if (linhaEmpresa) inputCompany.value = linhaEmpresa;
                     }
                 }
 
