@@ -317,10 +317,12 @@
                     throw new Error("Sem texto detetado");
                 }
 
-                // 1. EMAIL
+                // 1. EMAIL com correção automática para erros de OCR (ex: etpe -> etpc)
                 const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
                 if (emailMatch) {
-                    inputEmail.value = emailMatch[0].toLowerCase();
+                    let emailTratado = emailMatch[0].toLowerCase();
+                    emailTratado = emailTratado.replace('.etpe.', '.etpc.').replace('.etpe.pt', '.etpc.pt');
+                    inputEmail.value = emailTratado;
                 }
 
                 // 2. TELEFONE
@@ -329,28 +331,36 @@
                     inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
                 }
 
-                // 3. LIMPEZA DE LINHAS
+                // 3. FILTRAGEM DE LINHAS
                 const linhas = text.split('\n')
                     .map(l => l.trim())
                     .filter(l => {
                         if (l.length < 3) return false;
                         if (/[=&#%|_^<>{}\\]/.test(l)) return false;
-                        if (/^(2030|portugal|pessoas|união|europeia|cofinanciado)/i.test(l)) return false;
+                        if (/^(2030|portugal|pessoas|união|europeia|cofinanciado|estudante|student)/i.test(l)) return false;
                         return true;
                     });
 
-                // 4. ATRIBUIÇÃO DE EMPRESA E NOME
+                // 4. ATRIBUIÇÃO ESTRITA DE EMPRESA E NOME
                 if (linhas.length > 0) {
-                    const idxEmpresa = linhas.findIndex(l => /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|ltda)/i.test(l));
+                    // Procura Empresa: EXCLUI explicitamente linhas que sejam moradas (Rua, nº, código postal)
+                    const idxEmpresa = linhas.findIndex(l => {
+                        const ehMorada = /^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l);
+                        const ehEmpresa = /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|ltda)/i.test(l);
+                        return ehEmpresa && !ehMorada;
+                    });
+
                     if (idxEmpresa !== -1) {
                         inputCompany.value = linhas[idxEmpresa];
                         linhas.splice(idxEmpresa, 1);
                     }
 
+                    // Procura Nome: Exige palavras em maiúsculas (Nomes Próprios) e rejeita moradas
                     const linhaNomeValida = linhas.find(l => {
                         const ehMorada = /^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l);
-                        const palavrasReais = l.match(/[a-zA-ZÀ-ÿ]{3,}/g);
-                        return !ehMorada && palavrasReais && palavrasReais.length >= 2;
+                        // Verifica se tem pelo menos 2 palavras com inicial maiúscula (ex: Mariana Santos)
+                        const palavrasMaiusculas = l.match(/\b[A-ZÀ-Ü][a-zà-ÿ]{2,}/g);
+                        return !ehMorada && palavrasMaiusculas && palavrasMaiusculas.length >= 2;
                     });
 
                     if (linhaNomeValida) {
