@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leitor de Cartões - OCR</title>
+    <title>Gestão de Contactos - Leitor OCR</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <style>
         * {
@@ -17,9 +17,17 @@
             background-color: #f0f0f0;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
             padding: 40px 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 100%;
+            max-width: 680px;
         }
 
         .card {
@@ -27,7 +35,6 @@
             border-radius: 16px;
             padding: 32px 40px;
             width: 100%;
-            max-width: 620px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
         }
 
@@ -42,7 +49,7 @@
         .video-container {
             position: relative;
             width: 100%;
-            height: 380px;
+            height: 320px;
             background-color: #000;
             border-radius: 8px;
             overflow: hidden;
@@ -86,7 +93,7 @@
             font-weight: 600;
             font-size: 14px;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: background-color 0.2s, opacity 0.2s;
         }
 
         .btn-primary {
@@ -94,9 +101,27 @@
             color: white;
         }
 
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .btn-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
+        }
+
         .btn-secondary {
             background-color: #e5e7eb;
             color: #374151;
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
         }
 
         button:disabled {
@@ -125,54 +150,173 @@
             margin-bottom: 6px;
         }
 
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid #d1d5db;
             border-radius: 8px;
             font-size: 14px;
             outline: none;
+            background-color: #fff;
+        }
+
+        /* Tabela e Filtros de Contactos */
+        .filter-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 20px;
+            background: #f9fafb;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .filter-container label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .filter-container select {
+            width: auto;
+            flex-grow: 1;
+            max-width: 250px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+        }
+
+        .contact-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .contact-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .contact-info h4 {
+            font-size: 16px;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+
+        .contact-info p {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 2px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .badge-potencial { background-color: #fef3c7; color: #92400e; }
+        .badge-cliente { background-color: #d1fae5; color: #065f46; }
+        .badge-fornecedor { background-color: #e0e7ff; color: #3730a3; }
+
+        .contact-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .contact-actions button {
+            flex: none;
+            padding: 6px 10px;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>📷 Leitor de Cartões</h2>
+    <div class="container">
+        <!-- CARD DO LEITOR & FORMULÁRIO -->
+        <div class="card">
+            <h2>📷 Leitor & Formulário de Contactos</h2>
 
-        <div class="video-container preview" id="preview">
-            <video id="video" autoplay playsinline muted></video>
-            <canvas id="canvas"></canvas>
+            <div class="video-container preview" id="preview">
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <div class="buttons">
+                <button class="btn-primary" id="btnStart">📷 Ligar câmara</button>
+                <button class="btn-secondary" id="btnFlip" disabled>🔄 Virar câmara</button>
+                <button class="btn-primary" id="btnCapture" disabled>📸 Tirar foto</button>
+                <button class="btn-secondary" id="btnRepeat" disabled>🔁 Repetir</button>
+                <button class="btn-secondary" id="btnStop" disabled style="flex: 1 1 100%;">⏹️ Desligar</button>
+            </div>
+
+            <div class="status" id="statusText"></div>
+
+            <form id="cardForm">
+                <input type="hidden" id="editIndex" value="-1">
+                <div class="form-group">
+                    <label for="inputName">Nome</label>
+                    <input type="text" id="inputName" required>
+                </div>
+                <div class="form-group">
+                    <label for="inputCompany">Empresa</label>
+                    <input type="text" id="inputCompany">
+                </div>
+                <div class="form-group">
+                    <label for="inputPhone">Telefone</label>
+                    <input type="text" id="inputPhone">
+                </div>
+                <div class="form-group">
+                    <label for="inputEmail">Email</label>
+                    <input type="email" id="inputEmail">
+                </div>
+                <!-- NOVO CAMPO: TIPO DE CONTACTO -->
+                <div class="form-group">
+                    <label for="inputType">Tipo de Contacto</label>
+                    <select id="inputType" required>
+                        <option value="Potencial Cliente">Potencial Cliente</option>
+                        <option value="Cliente">Cliente</option>
+                        <option value="Fornecedor">Fornecedor</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn-success" id="btnSave" style="flex: 1;">💾 Guardar Contacto</button>
+                    <button type="button" class="btn-secondary" id="btnCancelEdit" style="display: none; flex: 1;">Cancelar Edição</button>
+                </div>
+            </form>
         </div>
 
-        <div class="buttons">
-            <button class="btn-primary" id="btnStart">📷 Ligar câmara</button>
-            <button class="btn-secondary" id="btnFlip" disabled>🔄 Virar câmara</button>
-            <button class="btn-primary" id="btnCapture" disabled>📸 Tirar foto</button>
-            <button class="btn-secondary" id="btnRepeat" disabled>🔁 Repetir</button>
-            <button class="btn-secondary" id="btnStop" disabled style="flex: 1 1 100%;">⏹️ Desligar</button>
+        <!-- CARD DA LISTA DE CONTACTOS COM FILTRO -->
+        <div class="card">
+            <h2>📇 Lista de Contactos</h2>
+
+            <!-- FILTRO DE TIPO DE CONTACTO -->
+            <div class="filter-container">
+                <label for="filterType">🔍 Filtrar por Tipo:</label>
+                <select id="filterType">
+                    <option value="todos">Todos os tipos</option>
+                    <option value="Potencial Cliente">Potencial Cliente</option>
+                    <option value="Cliente">Cliente</option>
+                    <option value="Fornecedor">Fornecedor</option>
+                </select>
+            </div>
+
+            <ul class="contact-list" id="contactList"></ul>
         </div>
-
-        <div class="status" id="statusText"></div>
-
-        <form id="cardForm">
-            <div class="form-group">
-                <label for="inputName">Nome</label>
-                <input type="text" id="inputName">
-            </div>
-            <div class="form-group">
-                <label for="inputCompany">Empresa</label>
-                <input type="text" id="inputCompany">
-            </div>
-            <div class="form-group">
-                <label for="inputPhone">Telefone</label>
-                <input type="text" id="inputPhone">
-            </div>
-            <div class="form-group">
-                <label for="inputEmail">Email</label>
-                <input type="email" id="inputEmail">
-            </div>
-        </form>
     </div>
 
     <script>
@@ -187,17 +331,127 @@
         const btnRepeat = document.getElementById('btnRepeat');
         const statusText = document.getElementById('statusText');
 
+        const cardForm = document.getElementById('cardForm');
+        const editIndex = document.getElementById('editIndex');
         const inputName = document.getElementById('inputName');
         const inputCompany = document.getElementById('inputCompany');
         const inputPhone = document.getElementById('inputPhone');
         const inputEmail = document.getElementById('inputEmail');
+        const inputType = document.getElementById('inputType');
+        const btnSave = document.getElementById('btnSave');
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+
+        const filterType = document.getElementById('filterType');
+        const contactList = document.getElementById('contactList');
 
         let stream = null;
         let currentFacingMode = "environment";
+        let contactos = JSON.parse(localStorage.getItem('contactos_app') || '[]');
 
+        // --- GESTÃO DE CONTACTOS & LOCALSTORAGE ---
+        function guardarNoLocalStorage() {
+            localStorage.setItem('contactos_app', JSON.stringify(contactos));
+            renderizarContactos();
+        }
+
+        function renderizarContactos() {
+            contactList.innerHTML = '';
+            const filtro = filterType.value;
+
+            const contactosFiltrados = contactos.filter(c => {
+                if (filtro === 'todos') return true;
+                return c.type === filtro;
+            });
+
+            if (contactosFiltrados.length === 0) {
+                contactList.innerHTML = '<li style="text-align:center; color: #9ca3af; padding: 12px;">Nenhum contacto encontrado.</li>';
+                return;
+            }
+
+            contactosFiltrados.forEach((c, index) => {
+                const originalIndex = contactos.indexOf(c);
+                const li = document.createElement('li');
+                li.className = 'contact-item';
+
+                let badgeClass = 'badge-potencial';
+                if (c.type === 'Cliente') badgeClass = 'badge-cliente';
+                if (c.type === 'Fornecedor') badgeClass = 'badge-fornecedor';
+
+                li.innerHTML = `
+                    <div class="contact-info">
+                        <h4>${c.name}</h4>
+                        ${c.company ? `<p>🏢 ${c.company}</p>` : ''}
+                        ${c.phone ? `<p>📞 ${c.phone}</p>` : ''}
+                        ${c.email ? `<p>✉️ ${c.email}</p>` : ''}
+                        <span class="badge ${badgeClass}">${c.type}</span>
+                    </div>
+                    <div class="contact-actions">
+                        <button class="btn-secondary" onclick="editarContacto(${originalIndex})">✏️ Editar</button>
+                        <button class="btn-danger" onclick="eliminarContacto(${originalIndex})">🗑️</button>
+                    </div>
+                `;
+                contactList.appendChild(li);
+            });
+        }
+
+        window.editarContacto = function(index) {
+            const c = contactos[index];
+            editIndex.value = index;
+            inputName.value = c.name;
+            inputCompany.value = c.company || '';
+            inputPhone.value = c.phone || '';
+            inputEmail.value = c.email || '';
+            inputType.value = c.type || 'Potencial Cliente';
+
+            btnSave.textContent = "✏️ Atualizar Contacto";
+            btnCancelEdit.style.display = "inline-block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.eliminarContacto = function(index) {
+            if (confirm("Tens a certeza que desejas eliminar este contacto?")) {
+                contactos.splice(index, 1);
+                guardarNoLocalStorage();
+            }
+        };
+
+        btnCancelEdit.addEventListener('click', () => {
+            editIndex.value = "-1";
+            cardForm.reset();
+            btnSave.textContent = "💾 Guardar Contacto";
+            btnCancelEdit.style.display = "none";
+        });
+
+        cardForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const novoContacto = {
+                name: inputName.value.trim(),
+                company: inputCompany.value.trim(),
+                phone: inputPhone.value.trim(),
+                email: inputEmail.value.trim(),
+                type: inputType.value
+            };
+
+            const idx = parseInt(editIndex.value);
+            if (idx >= 0) {
+                contactos[idx] = novoContacto;
+            } else {
+                contactos.push(novoContacto);
+            }
+
+            guardarNoLocalStorage();
+            cardForm.reset();
+            editIndex.value = "-1";
+            btnSave.textContent = "💾 Guardar Contacto";
+            btnCancelEdit.style.display = "none";
+        });
+
+        filterType.addEventListener('change', renderizarContactos);
+
+        // --- CÂMARA & OCR ---
         async function ligarCamera() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert("O teu navegador não suporta a API de câmara neste endereço.");
+                alert("O navegador não suporta a API de câmara neste endereço.");
                 return;
             }
 
@@ -278,11 +532,9 @@
             processCanvas.width = canvas.width;
             processCanvas.height = canvas.height;
 
-            // Filtro de pré-processamento para remover reflexos em superfícies plastificadas
             pCtx.filter = 'contrast(180%) brightness(95%) grayscale(100%)';
             pCtx.drawImage(canvas, 0, 0);
 
-            // Binarização suave (Preto & Branco puro) para remover ruído da película
             const imgData = pCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
             const d = imgData.data;
             for (let i = 0; i < d.length; i += 4) {
@@ -316,16 +568,13 @@
                 const { data: { text } } = await worker.recognize(imageData);
                 await worker.terminate();
 
-                console.log("TEXTO BRUTO DETETADO:\n", text);
-
                 inputName.value = "";
                 inputCompany.value = "";
                 inputPhone.value = "";
                 inputEmail.value = "";
+                inputType.value = "Potencial Cliente"; // Tipo por omissão ao ler cartões
 
-                if (!text || text.trim().length === 0) {
-                    throw new Error("Sem texto detetado");
-                }
+                if (!text || text.trim().length === 0) throw new Error("Sem texto detetado");
 
                 const limparValor = (str) => {
                     return str
@@ -335,13 +584,11 @@
                         .trim();
                 };
 
-                // 1. NOME (JSON / Estruturado)
+                // Nome
                 const nameMatch = text.match(/["'*]*name["'*]*\s*:\s*"([^"]+)"/i);
-                if (nameMatch) {
-                    inputName.value = limparValor(nameMatch[1]);
-                }
+                if (nameMatch) inputName.value = limparValor(nameMatch[1]);
 
-                // 2. EMPRESA (JSON / Estruturado)
+                // Empresa
                 const companyMatch = text.match(/["'*]*(?:title|company|empresa)["'*]*\s*:\s*"([^"]+)"/i);
                 if (companyMatch) {
                     let empresaTexto = limparValor(companyMatch[1]);
@@ -349,7 +596,7 @@
                     inputCompany.value = empresaTexto;
                 }
 
-                // 3. EMAIL (Regra especial para cartões da ETPC com reflexo)
+                // Email
                 const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
                 if (emailMatch) {
                     let em = emailMatch[0].toLowerCase()
@@ -359,7 +606,6 @@
                         .replace(/\.pr$/, '.pt');
                     inputEmail.value = em;
 
-                    // Fallback automático de empresa pelo domínio do email
                     if (!inputCompany.value) {
                         if (em.includes('etpc.pt')) {
                             inputCompany.value = "ETPC";
@@ -375,13 +621,11 @@
                     }
                 }
 
-                // 4. TELEFONE
+                // Telefone
                 const phoneMatch = text.match(/(?:\+351\s?)?(?:2\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|9[1236]\d{1}[\s.-]?\d{3}[\s.-]?\d{3})/g);
-                if (phoneMatch) {
-                    inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
-                }
+                if (phoneMatch) inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
 
-                // 5. PARSER PARA CARTÕES TRADICIONAIS E PLASTIFICADOS
+                // Parser Tradicional
                 if (!inputName.value || !inputCompany.value) {
                     const linhas = text.split('\n')
                         .map(l => limparValor(l))
@@ -410,9 +654,7 @@
                                 return palavrasMaiusculas && palavrasMaiusculas.length >= 2;
                             });
 
-                            if (linhaNomeValida) {
-                                inputName.value = linhaNomeValida;
-                            }
+                            if (linhaNomeValida) inputName.value = linhaNomeValida;
                         }
                     }
                 }
@@ -423,7 +665,7 @@
             } catch (err) {
                 console.error("Erro no OCR:", err);
                 statusText.style.color = "#ef4444";
-                statusText.textContent = "❌ Não foi possível ler o texto. Evita focar a luz direta no plástico.";
+                statusText.textContent = "❌ Não foi possível ler o texto.";
             }
         }
 
@@ -432,6 +674,9 @@
         btnStop.addEventListener('click', desligarCamera);
         btnCapture.addEventListener('click', tirarFoto);
         btnRepeat.addEventListener('click', repetir);
+
+        // Renderiza os contactos existentes no início
+        renderizarContactos();
     });
     </script>
 </body>
