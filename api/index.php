@@ -306,9 +306,8 @@
                 const { data: { text } } = await worker.recognize(imageData);
                 await worker.terminate();
 
-                console.log("TEXTO LIDO PELO OCR:\n", text);
+                console.log("TEXTO BRUTO DETETADO:\n", text);
 
-                // Limpa sempre os campos no início de cada leitura
                 inputName.value = "";
                 inputCompany.value = "";
                 inputPhone.value = "";
@@ -318,43 +317,44 @@
                     throw new Error("Sem texto detetado");
                 }
 
-                // 1. EMAIL (Apenas se houver um endereço no formato correto)
+                // 1. EMAIL
                 const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
                 if (emailMatch) {
                     inputEmail.value = emailMatch[0].toLowerCase();
                 }
 
-                // 2. TELEFONE (Apenas se houver uma sequência numérica válida de contacto)
+                // 2. TELEFONE
                 const phoneMatch = text.match(/(?:\+351\s?)?(?:2\d{2}[\s.-]?\d{3}[\s.-]?\d{3}|9[1236]\d{1}[\s.-]?\d{3}[\s.-]?\d{3})/g);
                 if (phoneMatch) {
-                    inputPhone.value = phoneMatch[0].trim();
+                    inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
                 }
 
-                // 3. FILTRAGEM DE LINHAS DE TEXTO
+                // 3. LIMPEZA DE LINHAS
                 const linhas = text.split('\n')
                     .map(l => l.trim())
                     .filter(l => {
                         if (l.length < 3) return false;
-                        // Elimina linhas apenas com símbolos/números soltos de logótipos (ex: 2030, UE)
-                        if (/^[0-9\s._\-+/*=?!@#$%&()]+$/.test(l)) return false;
+                        if (/[=&#%|_^<>{}\\]/.test(l)) return false;
                         if (/^(2030|portugal|pessoas|união|europeia|cofinanciado)/i.test(l)) return false;
                         return true;
                     });
 
-                // 4. ATRIBUIÇÃO ESTRITA DE EMPRESA E NOME
+                // 4. ATRIBUIÇÃO DE EMPRESA E NOME
                 if (linhas.length > 0) {
-                    // Procura explicitamente por empresas/entidades conhecidas na frase
-                    const idxEmpresa = linhas.findIndex(l => /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|ltda|group|serviços)/i.test(l));
-                    
+                    const idxEmpresa = linhas.findIndex(l => /(escola|técnica|profissional|cantanhede|etpc|empresa|ltd|sa|ltda)/i.test(l));
                     if (idxEmpresa !== -1) {
                         inputCompany.value = linhas[idxEmpresa];
-                        linhas.splice(idxEmpresa, 1); // remove a linha da empresa para não a usar como nome
+                        linhas.splice(idxEmpresa, 1);
                     }
 
-                    // Para o Nome, só aceita se a linha tiver texto sem ser moradas (Rua/Av/Código Postal)
-                    const linhaNome = linhas.find(l => !/^(rua|av|avenida|praça|3060|nº|\d{4}-\d{3})/i.test(l) && /[a-zA-Z]{3,}/.test(l));
-                    if (linhaNome) {
-                        inputName.value = linhaNome;
+                    const linhaNomeValida = linhas.find(l => {
+                        const ehMorada = /^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l);
+                        const palavrasReais = l.match(/[a-zA-ZÀ-ÿ]{3,}/g);
+                        return !ehMorada && palavrasReais && palavrasReais.length >= 2;
+                    });
+
+                    if (linhaNomeValida) {
+                        inputName.value = linhaNomeValida;
                     }
                 }
 
