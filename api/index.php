@@ -325,21 +325,21 @@
                         .trim();
                 };
 
-                // 1. NOME (Deteta apenas se houver formato de código "name": ou nome próprio real)
-                const nameMatch = text.match(/"?\*?name"?\s*:\s*"([^"]+)"/i);
+                // 1. NOME
+                const nameMatch = text.match(/["'*]*name["'*]*\s*:\s*"([^"]+)"/i);
                 if (nameMatch) {
                     inputName.value = limparValor(nameMatch[1]);
                 }
 
-                // 2. EMPRESA / CARGO (Deteta apenas se houver chave explícita de empresa)
-                const companyMatch = text.match(/"?\*?(?:title|company|empresa)"?\s*:\s*"([^"]+)"/i);
+                // 2. EMPRESA / CARGO
+                const companyMatch = text.match(/["'*]*(?:title|company|empresa)["'*]*\s*:\s*"([^"]+)"/i);
                 if (companyMatch) {
                     let empresaTexto = limparValor(companyMatch[1]);
-                    empresaTexto = empresaTexto.replace(/^(CEO|CTO|Manager|Diretor|Director)\s+/i, '');
+                    empresaTexto = empresaTexto.replace(/^(CEO|CTO|Manager|Diretor|Director|Gerente)\s+/i, '');
                     inputCompany.value = empresaTexto;
                 }
 
-                // 3. EMAIL (Correção automática de erros comuns de leitura como etpe/etpo para etpc)
+                // 3. EMAIL
                 const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
                 if (emailMatch) {
                     let em = emailMatch[0].toLowerCase()
@@ -348,6 +348,17 @@
                         .replace(/\.etp[e|o]\.pt$/g, '.etpc.pt')
                         .replace(/\.pr$/, '.pt');
                     inputEmail.value = em;
+
+                    // Fallback para Empresa se o campo continuar vazio
+                    if (!inputCompany.value) {
+                        const dominio = em.split('@')[1];
+                        if (dominio) {
+                            const nomeDominio = dominio.split('.')[0];
+                            if (!['gmail', 'hotmail', 'outlook', 'sapo', 'yahoo'].includes(nomeDominio)) {
+                                inputCompany.value = nomeDominio.charAt(0).toUpperCase() + nomeDominio.slice(1);
+                            }
+                        }
+                    }
                 }
 
                 // 4. TELEFONE
@@ -356,14 +367,13 @@
                     inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
                 }
 
-                // 5. ATRIBUIÇÃO ESTRITA PARA CARTÕES TRADICIONAIS (Rejeita moradas e sites)
+                // 5. ATRIBUIÇÃO ESTRITA PARA CARTÕES TRADICIONAIS
                 if (!inputName.value || !inputCompany.value) {
                     const linhas = text.split('\n')
                         .map(l => limparValor(l))
                         .filter(l => {
                             if (l.length < 3) return false;
                             if (/[=&#%|_^<>{}\\]/.test(l)) return false;
-                            // Exclui moradas, códigos postais, sites e marcas
                             if (/^(rua|av|avenida|praça|3060|nº|n\.º|\d{4}-\d{3})/i.test(l)) return false;
                             if (/^(www\.|https?:\/\/|\S+\.(pt|com|org|net))/i.test(l)) return false;
                             if (/^(2030|portugal|pessoas|união|europeia|cofinanciado|estudante|student|name|title|email|url|link|phone)/i.test(l)) return false;
