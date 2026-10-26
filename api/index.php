@@ -275,12 +275,22 @@
 
             const processCanvas = document.createElement('canvas');
             const pCtx = processCanvas.getContext('2d');
-            
             processCanvas.width = canvas.width;
             processCanvas.height = canvas.height;
 
-            pCtx.filter = 'contrast(160%) grayscale(100%)';
+            // Filtro de pré-processamento para remover reflexos em superfícies plastificadas
+            pCtx.filter = 'contrast(180%) brightness(95%) grayscale(100%)';
             pCtx.drawImage(canvas, 0, 0);
+
+            // Binarização suave (Preto & Branco puro) para remover ruído da película
+            const imgData = pCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+                const v = (d[i] + d[i + 1] + d[i + 2]) / 3;
+                const threshold = v < 120 ? 0 : 255;
+                d[i] = d[i + 1] = d[i + 2] = threshold;
+            }
+            pCtx.putImageData(imgData, 0, 0);
 
             processarOCR(processCanvas.toDataURL('image/png'));
         }
@@ -325,13 +335,13 @@
                         .trim();
                 };
 
-                // 1. NOME
+                // 1. NOME (JSON / Estruturado)
                 const nameMatch = text.match(/["'*]*name["'*]*\s*:\s*"([^"]+)"/i);
                 if (nameMatch) {
                     inputName.value = limparValor(nameMatch[1]);
                 }
 
-                // 2. EMPRESA / CARGO
+                // 2. EMPRESA (JSON / Estruturado)
                 const companyMatch = text.match(/["'*]*(?:title|company|empresa)["'*]*\s*:\s*"([^"]+)"/i);
                 if (companyMatch) {
                     let empresaTexto = limparValor(companyMatch[1]);
@@ -339,7 +349,7 @@
                     inputCompany.value = empresaTexto;
                 }
 
-                // 3. EMAIL
+                // 3. EMAIL (Regra especial para cartões da ETPC com reflexo)
                 const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
                 if (emailMatch) {
                     let em = emailMatch[0].toLowerCase()
@@ -349,13 +359,17 @@
                         .replace(/\.pr$/, '.pt');
                     inputEmail.value = em;
 
-                    // Fallback para Empresa se o campo continuar vazio
+                    // Fallback automático de empresa pelo domínio do email
                     if (!inputCompany.value) {
-                        const dominio = em.split('@')[1];
-                        if (dominio) {
-                            const nomeDominio = dominio.split('.')[0];
-                            if (!['gmail', 'hotmail', 'outlook', 'sapo', 'yahoo'].includes(nomeDominio)) {
-                                inputCompany.value = nomeDominio.charAt(0).toUpperCase() + nomeDominio.slice(1);
+                        if (em.includes('etpc.pt')) {
+                            inputCompany.value = "ETPC";
+                        } else {
+                            const dominio = em.split('@')[1];
+                            if (dominio) {
+                                const nomeDominio = dominio.split('.')[0];
+                                if (!['gmail', 'hotmail', 'outlook', 'sapo', 'yahoo'].includes(nomeDominio)) {
+                                    inputCompany.value = nomeDominio.charAt(0).toUpperCase() + nomeDominio.slice(1);
+                                }
                             }
                         }
                     }
@@ -367,7 +381,7 @@
                     inputPhone.value = phoneMatch[0].replace(/\s+/g, '');
                 }
 
-                // 5. ATRIBUIÇÃO ESTRITA PARA CARTÕES TRADICIONAIS
+                // 5. PARSER PARA CARTÕES TRADICIONAIS E PLASTIFICADOS
                 if (!inputName.value || !inputCompany.value) {
                     const linhas = text.split('\n')
                         .map(l => limparValor(l))
@@ -409,7 +423,7 @@
             } catch (err) {
                 console.error("Erro no OCR:", err);
                 statusText.style.color = "#ef4444";
-                statusText.textContent = "❌ Não foi possível ler o texto.";
+                statusText.textContent = "❌ Não foi possível ler o texto. Evita focar a luz direta no plástico.";
             }
         }
 
